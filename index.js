@@ -6,7 +6,7 @@ const db = require('./db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const admin = require('./middleware/admin');
-const auth = require('./middleware/auth'); 
+const auth = require('./middleware/auth');
 
 const app = express();
 
@@ -14,11 +14,13 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://your-frontend.vercel.app"
+    "https://ticketbox-frontend.vercel.app"
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
-}));app.use(express.json()); 
+}));
+
+app.use(express.json());
 
 // ===========================================
 // === API XÁC THỰC (AUTH) ===
@@ -198,7 +200,7 @@ app.get('/api/events/upcoming', async (req, res) => {
 app.get('/api/events', async (req, res) => {
   try {
     const { category_id } = req.query;
-    
+
     let query = `
       SELECT 
         events.id, 
@@ -216,15 +218,15 @@ app.get('/api/events', async (req, res) => {
       FROM events
       JOIN categories ON events.category_id = categories.id
     `;
-    
+
     const params = [];
     if (category_id) {
       query += ` WHERE events.category_id = $1`;
       params.push(category_id);
     }
-    
+
     query += ` ORDER BY events.event_date DESC`;
-    
+
     const allEvents = await db.query(query, params);
     res.status(200).json(allEvents.rows);
   } catch (err) {
@@ -235,15 +237,15 @@ app.get('/api/events', async (req, res) => {
 
 app.post('/api/events', auth, admin, async (req, res) => {
   try {
-    console.log("Đang nhận yêu cầu tạo sự kiện:", req.body); 
+    console.log("Đang nhận yêu cầu tạo sự kiện:", req.body);
     const { title, description, image_url, event_date, end_date, location, category_id, organizer, is_featured } = req.body;
     if (!req.user || !req.user.id) {
-        return res.status(401).json({ msg: "Lỗi xác thực: Không tìm thấy User ID" });
+      return res.status(401).json({ msg: "Lỗi xác thực: Không tìm thấy User ID" });
     }
-    const admin_id = req.user.id; 
+    const admin_id = req.user.id;
     if (!title || !event_date || !location) {
-         console.log("Thiếu thông tin bắt buộc (title, event_date, location)");
-         return res.status(400).json({ msg: "Thiếu tên, ngày hoặc địa điểm!" });
+      console.log("Thiếu thông tin bắt buộc (title, event_date, location)");
+      return res.status(400).json({ msg: "Thiếu tên, ngày hoặc địa điểm!" });
     }
     const newEvent = await db.query(
       `INSERT INTO events (title, description, image_url, event_date, end_date, location, category_id, organizer, is_featured, admin_id) 
@@ -252,15 +254,15 @@ app.post('/api/events', auth, admin, async (req, res) => {
       [title, description, image_url, event_date, end_date, location, category_id, organizer, is_featured, admin_id]
     );
     if (newEvent.rows.length > 0) {
-        console.log("Tạo sự kiện thành công, ID:", newEvent.rows[0].id);
-        res.status(201).json(newEvent.rows[0]);
+      console.log("Tạo sự kiện thành công, ID:", newEvent.rows[0].id);
+      res.status(201).json(newEvent.rows[0]);
     } else {
-        throw new Error("Không thể lưu sự kiện vào database (Không có dòng nào được trả về)");
+      throw new Error("Không thể lưu sự kiện vào database (Không có dòng nào được trả về)");
     }
 
   } catch (err) {
-    console.error("LỖI TẠO SỰ KIỆN (BACKEND):", err); 
-    res.status(500).send("Lỗi Server: " + err.message); 
+    console.error("LỖI TẠO SỰ KIỆN (BACKEND):", err);
+    res.status(500).send("Lỗi Server: " + err.message);
   }
 });
 
@@ -299,7 +301,7 @@ app.put('/api/events/:id', auth, admin, async (req, res) => {
     const { id } = req.params;
     const { title, description, image_url, event_date, end_date, location, category_id, organizer, is_featured } = req.body;
     if (!title || !event_date || !location) {
-         return res.status(400).json({ msg: "Thiếu thông tin bắt buộc (Tên, Ngày, Địa điểm)!" });
+      return res.status(400).json({ msg: "Thiếu thông tin bắt buộc (Tên, Ngày, Địa điểm)!" });
     }
 
     const updatedEvent = await db.query(
@@ -358,13 +360,13 @@ app.put('/api/events/:id', auth, admin, async (req, res) => {
 app.delete('/api/events/:id', auth, admin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     await db.query("DELETE FROM tickets WHERE event_id = $1", [id]);
     const deleteOp = await db.query(
       "DELETE FROM events WHERE id = $1 RETURNING *",
       [id]
     );
-    
+
     if (deleteOp.rows.length === 0) {
       return res.status(404).json({ msg: "Không tìm thấy sự kiện" });
     }
@@ -396,12 +398,12 @@ app.get('/api/tickets/:event_id', async (req, res) => {
 app.post('/api/tickets', auth, admin, async (req, res) => {
   try {
     const { event_id, type, price, quantity_available } = req.body;
-    
+
     const newTicket = await db.query(
       "INSERT INTO tickets (event_id, type, price, quantity_available) VALUES ($1, $2, $3, $4) RETURNING *",
       [event_id, type, price, quantity_available]
     );
-    
+
     res.status(201).json(newTicket.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -460,7 +462,7 @@ app.post('/api/orders', auth, async (req, res) => {
 
   try {
     const { ticket_id, quantity } = req.body;
-    const user_id = req.user.id; 
+    const user_id = req.user.id;
 
     const MAX_TICKET_PER_USER = 2; // Ví dụ: Mỗi người chỉ được mua tối đa 4 vé trọn đời cho loại này
 
@@ -477,13 +479,13 @@ app.post('/api/orders', auth, async (req, res) => {
 
     if (currentBought + quantity > MAX_TICKET_PER_USER) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        msg: `Bạn đã mua ${currentBought} vé trước đó. Giới hạn tối đa là ${MAX_TICKET_PER_USER} vé/người.` 
+      return res.status(400).json({
+        msg: `Bạn đã mua ${currentBought} vé trước đó. Giới hạn tối đa là ${MAX_TICKET_PER_USER} vé/người.`
       });
     }
 
     const ticketRes = await client.query(
-      "SELECT * FROM tickets WHERE id = $1 FOR UPDATE", 
+      "SELECT * FROM tickets WHERE id = $1 FOR UPDATE",
       [ticket_id]
     );
 
